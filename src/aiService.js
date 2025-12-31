@@ -35,6 +35,10 @@ async function generateResponse(messages, summary, newMessage) {
             response = response.replace(/^[\s\S]*?<\/think>/gi, '').trim(); // Handle unclosed start
             response = response.replace(/<think>[\s\S]*$/gi, '').trim(); // Handle unclosed end
 
+            if (!response) {
+                return "I apologize, could you please rephrase that?";
+            }
+
             return response;
         }
 

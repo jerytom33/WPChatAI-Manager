@@ -16,6 +16,11 @@ async function sendReply(from, to, message) {
         throw new Error('WhatsApp API key not configured');
     }
 
+    if (!message || !message.trim()) {
+        console.warn('⚠️ Empty message content, skipping send.');
+        return { status: 'skipped', reason: 'empty_message' };
+    }
+
     try {
         const payload = {
             recipient_type: 'individual',
@@ -29,15 +34,43 @@ async function sendReply(from, to, message) {
 
         console.log(`📤 Sending reply to ${to}...`);
 
-        const response = await axios.post(apiUrl, payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': apiKey
-            }
-        });
+        const maxRetries = 3;
+        let attempt = 0;
+        let sent = false;
+        let responseData;
 
-        console.log(`✅ Reply sent successfully to ${to}`);
-        return response.data;
+        while (attempt < maxRetries && !sent) {
+            try {
+                attempt++;
+                const response = await axios.post(apiUrl, payload, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': apiKey
+                    },
+                    timeout: 10000 // 10s timeout
+                });
+
+                console.log(`✅ Reply sent successfully to ${to}`);
+                responseData = response.data;
+                sent = true;
+            } catch (error) {
+                console.error(`❌ Attempt ${attempt} failed:`, error.message);
+
+                // Don't retry on 4xx errors (client errors) except 429 (rate limit)
+                if (error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 429) {
+                    throw error;
+                }
+
+                if (attempt === maxRetries) throw error;
+
+                // Wait before retrying (1s, 2s, 4s)
+                const delay = 1000 * Math.pow(2, attempt - 1);
+                console.log(`⏳ Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        return responseData;
 
     } catch (error) {
         console.error('❌ WhatsApp Reply Error:', error.message);
