@@ -27,7 +27,7 @@ async function handleWebhook(webhookData) {
 
     const waNumber = from;
     const profileName = contacts?.profileName || 'Unknown';
-    const recipient = contacts?.recipient || '';
+    const businessNumber = contacts?.recipient || '';
     const messageBody = messages.text?.body || '';
     const timestamp = messages.timestamp || Date.now();
 
@@ -35,12 +35,12 @@ async function handleWebhook(webhookData) {
     console.log(`💬 Message: ${messageBody}`);
 
     try {
-        // Step 1: Find or create user (crosscheck with database)
-        const user = await findOrCreateUser(waNumber, profileName);
-        console.log(`👤 User found/created: ${user.wanumber}`);
+        // Step 1: Find or create user (crosscheck with database using composite key)
+        const user = await findOrCreateUser(waNumber, businessNumber, profileName);
+        console.log(`👤 User found/created: ${user.wanumber} -> ${user.businessnumber}`);
 
-        // Step 2: Get conversation history
-        const { messages: previousMessages, summary } = await getConversationHistory(waNumber);
+        // Step 2: Get conversation history (using composite key)
+        const { messages: previousMessages, summary } = await getConversationHistory(waNumber, businessNumber);
         console.log(`📚 Previous messages: ${previousMessages.length}, Has summary: ${!!summary}`);
 
         // Step 3: Check if summarization is needed
@@ -55,7 +55,7 @@ async function handleWebhook(webhookData) {
             const newSummary = await summarizeConversation(previousMessages, summary);
 
             // Clear history and update summary
-            await clearHistoryWithSummary(waNumber, newSummary);
+            await clearHistoryWithSummary(waNumber, businessNumber, newSummary);
 
             currentSummary = newSummary;
             currentMessages = [];
@@ -83,13 +83,13 @@ async function handleWebhook(webhookData) {
             }
         ];
 
-        await updateConversationHistory(waNumber, updatedMessages);
+        await updateConversationHistory(waNumber, businessNumber, updatedMessages);
         console.log('💾 Conversation history updated');
 
         // Step 6: Send reply via WhatsApp API
         // Based on reply_curl.txt: from=user, to=business (API context/threading)
         const replyFrom = waNumber.startsWith('+') ? waNumber : `+${waNumber}`;
-        const replyTo = recipient.startsWith('+') ? recipient : `+${recipient}`;
+        const replyTo = businessNumber.startsWith('+') ? businessNumber : `+${businessNumber}`;
 
         console.log(`📞 Reply from: ${replyFrom}, to: ${replyTo}`);
 

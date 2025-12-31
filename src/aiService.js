@@ -22,24 +22,28 @@ async function generateResponse(messages, summary, newMessage) {
         const completion = await groq.chat.completions.create({
             model: MODEL,
             messages: conversationContext,
+            max_tokens: 60,
+            temperature: 0.7,
         });
 
         // Extract the AI response
-        const response = completion.choices[0]?.message?.content;
+        let response = completion.choices[0]?.message?.content;
 
         if (response) {
-            return response;
+            // Remove any <think> tags and their content
+            response = response.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            response = response.replace(/^[\s\S]*?<\/think>/gi, '').trim();
+            // Take only first sentence
+            const firstSentence = response.split(/[.!?]/)[0];
+            return firstSentence ? firstSentence.trim() + '.' : response.substring(0, 100);
         }
 
         console.error('Unexpected AI response structure:', completion);
-        return "I'm sorry, I couldn't process that request. Please try again.";
+        return "Please try again.";
 
     } catch (error) {
         console.error('AI Service Error:', error.message);
-        if (error.response) {
-            console.error('Response data:', error.response.data);
-        }
-        return "I'm experiencing some technical difficulties. Please try again in a moment.";
+        return "Technical issue, try again.";
     }
 }
 

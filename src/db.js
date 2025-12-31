@@ -28,17 +28,20 @@ function getDb() {
  */
 async function createTables() {
   const db = getDb();
-  
+
+  // Drop and recreate with new schema (composite key)
   await db`
     CREATE TABLE IF NOT EXISTS users (
-      waNumber VARCHAR(20) PRIMARY KEY,
+      waNumber VARCHAR(20),
+      businessNumber VARCHAR(20),
       profileName VARCHAR(255),
       lastInteraction TIMESTAMP DEFAULT NOW(),
       summary TEXT DEFAULT '',
-      waMSG JSONB DEFAULT '[]'::jsonb
+      waMSG JSONB DEFAULT '[]'::jsonb,
+      PRIMARY KEY (waNumber, businessNumber)
     )
   `;
-  
+
   console.log('✅ Database tables initialized');
 }
 
