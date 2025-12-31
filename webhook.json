@@ -1,0 +1,17 @@
+{
+    "channel": "whatsapp",
+    "messageId": "58f54696-7799-4a73-9c68-41b03b1b30c9:1",
+    "from": "+917736761562",
+    "event": "message_received",
+    "contacts": {
+        "profileName": "Nandakiran  R",
+        "recipient": "917594824490"
+    },
+    "messages": {
+        "type": "text",
+        "text": {
+            "body": "Hi"
+        },
+        "timestamp": 1767186736119
+    }
+}

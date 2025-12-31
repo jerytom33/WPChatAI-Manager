@@ -1,0 +1,20 @@
+{
+    "name": "wpchatai",
+    "version": "1.0.0",
+    "description": "WhatsApp Chatbot Backend with Neon PostgreSQL and Puter AI",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "node --watch src/index.js"
+    },
+    "dependencies": {
+        "@neondatabase/serverless": "^0.10.4",
+        "axios": "^1.7.9",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "groq-sdk": "^0.37.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
