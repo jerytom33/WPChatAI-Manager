@@ -1,0 +1,15 @@
+At Waxon, we specialize in seamless WhatsApp business automation and communication solutions. Our goal is to empower businesses to streamline their customer interactions and boost overall efficiency using advanced smart workflow technology.
+
+What We Do:
+
+WhatsApp Official Business API: We provide access to the official API, enabling businesses to communicate with their customers securely and reliably at scale.
+
+Custom Chatbot Development: We design and build intelligent, AI-powered chatbots tailored to specific business needs, capable of handling inquiries and managing leads 24/7.
+
+Process Automation: We implement solutions to automate messaging workflows, ensuring timely responses and significantly improving customer satisfaction.
+
+Live Chat Support: Beyond automation, we offer professional live chat agent services to provide real-time, human assistance when needed.
+
+CRM & Workflow Integration: Our tools integrate directly with CRM systems to create smart, automated workflows that drive business transformation.
+
+Essentially, we help companies modernize their communication strategies and grow their success through the power of WhatsApp and AI

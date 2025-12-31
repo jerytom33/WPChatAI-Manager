@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 /**
  * Dummy template with predefined details for AI context
  * Customize this with actual business information
@@ -20,7 +23,7 @@ RULES:
 
 
     // Response constraints
-    maxResponseLength: 500,
+    maxResponseLength: 1000,
 
 
 };
@@ -30,6 +33,15 @@ RULES:
  * @returns {string} System prompt
  */
 function getSystemPrompt() {
+    try {
+        const aboutPath = path.join(__dirname, 'about.txt');
+        if (fs.existsSync(aboutPath)) {
+            const aboutContent = fs.readFileSync(aboutPath, 'utf-8');
+            return `${BUSINESS_TEMPLATE.systemPrompt}\n\nCompany Context:\n${aboutContent}`;
+        }
+    } catch (error) {
+        console.error('Error reading about.txt:', error);
+    }
     return BUSINESS_TEMPLATE.systemPrompt;
 }
 

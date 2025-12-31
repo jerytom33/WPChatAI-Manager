@@ -1,5 +1,5 @@
 const Groq = require('groq-sdk');
-const { getSystemPrompt } = require('./template');
+const { getSystemPrompt, BUSINESS_TEMPLATE } = require('./template');
 
 // Initialize Groq client (uses GROQ_API_KEY from environment)
 const groq = new Groq();
@@ -10,7 +10,6 @@ const MODEL = 'qwen/qwen3-32b';
 /**
  * Generate a response using Groq's chat completion API
  * @param {Array} messages - Previous conversation messages
-
  * @param {string} newMessage - Current user message
  * @returns {string} AI generated response
  */
@@ -22,7 +21,7 @@ async function generateResponse(messages, newMessage) {
         const completion = await groq.chat.completions.create({
             model: MODEL,
             messages: conversationContext,
-            max_tokens: 120,
+            max_tokens: BUSINESS_TEMPLATE.maxResponseLength || 1000,
             temperature: 0.3,
         });
 
