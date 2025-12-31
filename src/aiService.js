@@ -22,20 +22,20 @@ async function generateResponse(messages, summary, newMessage) {
         const completion = await groq.chat.completions.create({
             model: MODEL,
             messages: conversationContext,
-            max_tokens: 60,
-            temperature: 0.7,
+            max_tokens: 120,
+            temperature: 0.3,
         });
 
         // Extract the AI response
         let response = completion.choices[0]?.message?.content;
 
         if (response) {
-            // Remove any <think> tags and their content
+            // Remove any <think> tags and their content (handling multi-line and unclosed tags)
             response = response.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-            response = response.replace(/^[\s\S]*?<\/think>/gi, '').trim();
-            // Take only first sentence
-            const firstSentence = response.split(/[.!?]/)[0];
-            return firstSentence ? firstSentence.trim() + '.' : response.substring(0, 100);
+            response = response.replace(/^[\s\S]*?<\/think>/gi, '').trim(); // Handle unclosed start
+            response = response.replace(/<think>[\s\S]*$/gi, '').trim(); // Handle unclosed end
+
+            return response;
         }
 
         console.error('Unexpected AI response structure:', completion);
