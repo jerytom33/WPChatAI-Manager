@@ -36,7 +36,6 @@ async function createTables() {
       businessNumber VARCHAR(20),
       profileName VARCHAR(255),
       lastInteraction TIMESTAMP DEFAULT NOW(),
-      summary TEXT DEFAULT '',
       waMSG JSONB DEFAULT '[]'::jsonb,
       PRIMARY KEY (waNumber, businessNumber)
     )

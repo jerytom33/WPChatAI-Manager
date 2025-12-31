@@ -1,7 +1,7 @@
-const { findOrCreateUser, getConversationHistory, updateConversationHistory, clearHistoryWithSummary } = require('./userService');
-const { generateResponse, summarizeConversation } = require('./aiService');
+const { findOrCreateUser, getConversationHistory, updateConversationHistory } = require('./userService');
+const { generateResponse } = require('./aiService');
 const { sendReply } = require('./whatsappService');
-const { getMessageThreshold } = require('./template');
+
 
 /**
  * Handle incoming webhook from WhatsApp Flowbuilder
@@ -40,37 +40,19 @@ async function handleWebhook(webhookData) {
         console.log(`👤 User found/created: ${user.wanumber} -> ${user.businessnumber}`);
 
         // Step 2: Get conversation history (using composite key)
-        const { messages: previousMessages, summary } = await getConversationHistory(waNumber, businessNumber);
-        console.log(`📚 Previous messages: ${previousMessages.length}, Has summary: ${!!summary}`);
+        const { messages: previousMessages } = await getConversationHistory(waNumber, businessNumber);
+        console.log(`📚 Previous messages: ${previousMessages.length}`);
 
-        // Step 3: Check if summarization is needed
-        const threshold = getMessageThreshold();
-        let currentSummary = summary;
-        let currentMessages = previousMessages;
 
-        if (previousMessages.length >= threshold) {
-            console.log(`🔄 Message threshold (${threshold}) reached, triggering summarization...`);
-
-            // Summarize the conversation
-            const newSummary = await summarizeConversation(previousMessages, summary);
-
-            // Clear history and update summary
-            await clearHistoryWithSummary(waNumber, businessNumber, newSummary);
-
-            currentSummary = newSummary;
-            currentMessages = [];
-
-            console.log('✅ Summarization complete');
-        }
 
         // Step 4: Generate AI response
         console.log('🤖 Generating AI response...');
-        const aiResponse = await generateResponse(currentMessages, currentSummary, messageBody);
+        const aiResponse = await generateResponse(previousMessages, messageBody);
         console.log(`🤖 AI Response: ${aiResponse.substring(0, 100)}...`);
 
         // Step 5: Update conversation history with new messages
         const updatedMessages = [
-            ...currentMessages,
+            ...previousMessages,
             {
                 role: 'user',
                 content: messageBody,
@@ -101,8 +83,7 @@ async function handleWebhook(webhookData) {
             profileName,
             userMessage: messageBody,
             aiResponse,
-            messageCount: updatedMessages.length,
-            summarized: previousMessages.length >= threshold
+            messageCount: updatedMessages.length
         };
 
     } catch (error) {

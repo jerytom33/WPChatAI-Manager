@@ -28,8 +28,8 @@ async function findOrCreateUser(waNumber, businessNumber, profileName) {
 
   // Create new user
   const newUsers = await sql`
-        INSERT INTO users (waNumber, businessNumber, profileName, summary, waMSG)
-        VALUES (${waNumber}, ${businessNumber}, ${profileName}, '', '[]'::jsonb)
+        INSERT INTO users (waNumber, businessNumber, profileName, waMSG)
+        VALUES (${waNumber}, ${businessNumber}, ${profileName}, '[]'::jsonb)
         RETURNING *
     `;
 
@@ -41,23 +41,22 @@ async function findOrCreateUser(waNumber, businessNumber, profileName) {
  * Get conversation history for a user
  * @param {string} waNumber - WhatsApp number
  * @param {string} businessNumber - Business WhatsApp number
- * @returns {Object} Contains messages array and summary
+ * @returns {Object} Contains messages array
  */
 async function getConversationHistory(waNumber, businessNumber) {
   const sql = getDb();
 
   const users = await sql`
-        SELECT waMSG, summary FROM users 
+        SELECT waMSG FROM users 
         WHERE waNumber = ${waNumber} AND businessNumber = ${businessNumber}
     `;
 
   if (users.length === 0) {
-    return { messages: [], summary: '' };
+    return { messages: [] };
   }
 
   return {
-    messages: users[0].wamsg || [],
-    summary: users[0].summary || ''
+    messages: users[0].wamsg || []
   };
 }
 
@@ -66,52 +65,31 @@ async function getConversationHistory(waNumber, businessNumber) {
  * @param {string} waNumber - WhatsApp number
  * @param {string} businessNumber - Business WhatsApp number
  * @param {Array} messages - Updated messages array
- * @param {string} summary - Updated summary (optional)
+ * @param {Array} messages - Updated messages array
  */
-async function updateConversationHistory(waNumber, businessNumber, messages, summary = null) {
+async function updateConversationHistory(waNumber, businessNumber, messages) {
   const sql = getDb();
 
-  if (summary !== null) {
-    await sql`
-            UPDATE users 
-            SET waMSG = ${JSON.stringify(messages)}::jsonb, 
-                summary = ${summary},
-                lastInteraction = NOW()
-            WHERE waNumber = ${waNumber} AND businessNumber = ${businessNumber}
-        `;
-  } else {
-    await sql`
+
+  await sql`
             UPDATE users 
             SET waMSG = ${JSON.stringify(messages)}::jsonb,
                 lastInteraction = NOW()
             WHERE waNumber = ${waNumber} AND businessNumber = ${businessNumber}
         `;
-  }
-}
-
-/**
- * Clear messages and update summary after summarization
- * @param {string} waNumber - WhatsApp number
- * @param {string} businessNumber - Business WhatsApp number
- * @param {string} newSummary - New summarized content
- */
-async function clearHistoryWithSummary(waNumber, businessNumber, newSummary) {
-  const sql = getDb();
-
   await sql`
-        UPDATE users 
-        SET waMSG = '[]'::jsonb, 
-            summary = ${newSummary},
-            lastInteraction = NOW()
-        WHERE waNumber = ${waNumber} AND businessNumber = ${businessNumber}
-    `;
-
-  console.log(`✅ History cleared and summarized for: ${waNumber} -> ${businessNumber}`);
+            UPDATE users 
+            SET waMSG = ${JSON.stringify(messages)}::jsonb,
+                lastInteraction = NOW()
+            WHERE waNumber = ${waNumber} AND businessNumber = ${businessNumber}
+        `;
 }
+
+
 
 module.exports = {
   findOrCreateUser,
   getConversationHistory,
   updateConversationHistory,
-  clearHistoryWithSummary
+
 };
