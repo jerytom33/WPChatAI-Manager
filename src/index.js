@@ -4,6 +4,8 @@ const express = require('express');
 const { createTables } = require('./db');
 const { handleWebhook } = require('./webhookHandler');
 
+const adminRoutes = require('./adminRoutes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -11,25 +13,22 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
+// Enable CORS for development (allowing frontend on different port)
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    res.header('Access-Control-Allow-Origin', '*'); // For dev only
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     next();
 });
 
-// Health check endpoint
-app.get('/', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'WPChatAI Backend',
-        timestamp: new Date().toISOString()
-    });
-});
+// API Routes
+app.use('/api', adminRoutes);
 
 // Webhook endpoint for WhatsApp messages
-app.post('/webhook', async (req, res) => {
+app.post('/webhook/:businessId', async (req, res) => {
     try {
-        const result = await handleWebhook(req.body);
+        const { businessId } = req.params;
+        const result = await handleWebhook(req.body, businessId);
 
         if (result.success) {
             res.status(200).json({

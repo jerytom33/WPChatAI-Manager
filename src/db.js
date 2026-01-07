@@ -41,6 +41,15 @@ async function createTables() {
     )
   `;
 
+  await db`
+    CREATE TABLE IF NOT EXISTS tenants (
+      business_number VARCHAR(20) PRIMARY KEY,
+      api_key VARCHAR(255) NOT NULL,
+      webhook_url VARCHAR(255),
+      company_context TEXT
+    )
+  `;
+
   console.log('✅ Database tables initialized');
 }
 

@@ -2,7 +2,10 @@ const Groq = require('groq-sdk');
 const { getSystemPrompt, BUSINESS_TEMPLATE } = require('./template');
 
 // Initialize Groq client (uses GROQ_API_KEY from environment)
-const groq = new Groq();
+// Pass a dummy key if not present to allow server startup (actual calls will use tenant key if refactored, 
+// but currently aiService uses global instance. We probably want to instantiate per request or ensure global key exists)
+const apiKey = process.env.GROQ_API_KEY || 'dummy_key_for_startup';
+const groq = new Groq({ apiKey });
 
 // Model to use
 const MODEL = 'qwen/qwen3-32b';
@@ -11,12 +14,13 @@ const MODEL = 'qwen/qwen3-32b';
  * Generate a response using Groq's chat completion API
  * @param {Array} messages - Previous conversation messages
  * @param {string} newMessage - Current user message
+ * @param {string} [systemPromptOverride] - Optional system prompt override
  * @returns {string} AI generated response
  */
-async function generateResponse(messages, newMessage) {
+async function generateResponse(messages, newMessage, systemPromptOverride) {
     try {
         // Build the conversation context
-        const conversationContext = buildContext(messages, newMessage);
+        const conversationContext = buildContext(messages, newMessage, systemPromptOverride);
 
         const completion = await groq.chat.completions.create({
             model: MODEL,
@@ -53,20 +57,18 @@ async function generateResponse(messages, newMessage) {
 /**
  * Build the conversation context for the AI
  * @param {Array} messages - Previous messages
-
  * @param {string} newMessage - New user message
+ * @param {string} [systemPromptOverride] - Optional system prompt override
  * @returns {Array} Formatted messages array for AI
  */
-function buildContext(messages, newMessage) {
+function buildContext(messages, newMessage, systemPromptOverride) {
     const context = [];
 
     // Add system prompt
     context.push({
         role: 'system',
-        content: getSystemPrompt()
+        content: systemPromptOverride || getSystemPrompt()
     });
-
-
 
     // Add recent messages (limit to last 10 for context window)
     const recentMessages = messages.slice(-10);
@@ -86,9 +88,6 @@ function buildContext(messages, newMessage) {
     return context;
 }
 
-
-
 module.exports = {
     generateResponse,
-
 };

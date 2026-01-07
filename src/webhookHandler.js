@@ -1,4 +1,5 @@
 const { findOrCreateUser, getConversationHistory, updateConversationHistory } = require('./userService');
+const { getTenantConfig } = require('./tenantService');
 const { generateResponse } = require('./aiService');
 const { sendReply } = require('./whatsappService');
 
@@ -6,9 +7,10 @@ const { sendReply } = require('./whatsappService');
 /**
  * Handle incoming webhook from WhatsApp Flowbuilder
  * @param {Object} webhookData - Incoming webhook payload
+ * @param {string} routeBusinessId - Business ID from URL route
  * @returns {Object} Processing result
  */
-async function handleWebhook(webhookData) {
+async function handleWebhook(webhookData, routeBusinessId) {
     console.log('📨 Received webhook:', JSON.stringify(webhookData, null, 2));
 
     // Validate webhook data
@@ -34,7 +36,22 @@ async function handleWebhook(webhookData) {
     console.log(`📱 Message from: ${waNumber} (${profileName})`);
     console.log(`💬 Message: ${messageBody}`);
 
+    // Verify payload business number matches route business ID (optional security check)
+    // Some providers might send slightly different formats (with/without +), so normalising might be needed.
+    // For now, we trust the route ID for tenant lookup.
+    console.log(`🔗 Route Business ID: ${routeBusinessId}`);
+
     try {
+        // Step 0: Get Tenant Configuration using Route Param
+        const tenant = await getTenantConfig(routeBusinessId);
+        if (!tenant) {
+            console.warn(`⚠️ Unknown business number (route): ${routeBusinessId}. Skipping.`);
+            return { success: false, reason: 'Unknown Tenant' };
+        }
+
+        const apiKey = tenant.api_key;
+        console.log(`🏢 Processing for tenant: ${businessNumber}`);
+
         // Step 1: Find or create user (crosscheck with database using composite key)
         const user = await findOrCreateUser(waNumber, businessNumber, profileName);
         console.log(`👤 User found/created: ${user.wanumber} -> ${user.businessnumber}`);
@@ -47,7 +64,9 @@ async function handleWebhook(webhookData) {
 
         // Step 4: Generate AI response
         console.log('🤖 Generating AI response...');
-        const aiResponse = await generateResponse(previousMessages, messageBody);
+        // Pass company context if available
+        const systemPromptOverride = tenant.company_context;
+        const aiResponse = await generateResponse(previousMessages, messageBody, systemPromptOverride);
         console.log(`🤖 AI Response: ${aiResponse.substring(0, 100)}...`);
 
         // Step 5: Update conversation history with new messages
@@ -75,7 +94,7 @@ async function handleWebhook(webhookData) {
 
         console.log(`📞 Reply from: ${replyFrom}, to: ${replyTo}`);
 
-        await sendReply(replyFrom, replyTo, aiResponse);
+        await sendReply(replyFrom, replyTo, aiResponse, apiKey);
 
         return {
             success: true,

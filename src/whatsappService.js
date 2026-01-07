@@ -5,15 +5,15 @@ const axios = require('axios');
  * @param {string} from - Sender's phone number (original recipient)
  * @param {string} to - Recipient's phone number (original sender)
  * @param {string} message - Message text to send
+ * @param {string} apiKey - API Key for the specific tenant
  * @returns {Object} API response
  */
-async function sendReply(from, to, message) {
+async function sendReply(from, to, message, apiKey) {
     const apiUrl = process.env.WHATSAPP_API_URL || 'https://api.aoc-portal.com/v1/whatsapp';
-    const apiKey = process.env.WHATSAPP_API_KEY;
 
     if (!apiKey) {
-        console.error('❌ WHATSAPP_API_KEY is not configured');
-        throw new Error('WhatsApp API key not configured');
+        console.error('❌ API Key missing for reply');
+        throw new Error('WhatsApp API key not provided');
     }
 
     if (!message || !message.trim()) {
