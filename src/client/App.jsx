@@ -137,7 +137,7 @@ function App() {
                                     <td>{tenant.api_key.substring(0, 10)}...</td>
                                     <td>
                                         {tenant.webhook_url ||
-                                            `${window.location.protocol}//${window.location.hostname}:3000/webhook/${tenant.business_number}`}
+                                            `${window.location.protocol}//${window.location.host}/webhook/${tenant.business_number}`}
                                     </td>
                                     <td>
                                         <button
