@@ -212,9 +212,40 @@ async function createBooking(bookingDetails) {
     }
 }
 
+/**
+ * Get high-level context for the AI (Cities, Clinics, Top Specs)
+ * This allows the bot to "know" what's available without searching.
+ */
+async function getMedicalContext() {
+    try {
+        // 1. Get distinct cities (to know coverage)
+        const cities = await sql`SELECT DISTINCT city FROM clinics LIMIT 5`;
+        const cityList = cities.map(c => c.city).join(', ');
+
+        // 2. Get Clinic Names (if few)
+        const clinics = await sql`SELECT name FROM clinics LIMIT 5`;
+        const clinicList = clinics.map(c => c.name).join(', ');
+
+        // 3. Get Specializations
+        const specs = await sql`SELECT name FROM specializations LIMIT 10`;
+        const specList = specs.map(s => s.name).join(', ');
+
+        return `
+        [REAL-TIME KNOWLEDGE]
+        - Available Cities: ${cityList || 'None'}
+        - Key Clinics: ${clinicList || 'None'}
+        - Specializations: ${specList || 'General'}
+        `;
+    } catch (e) {
+        console.error("Error fetching medical context:", e);
+        return "";
+    }
+}
+
 module.exports = {
     getClinics,
     getDoctors,
     checkAvailability,
-    createBooking
+    createBooking,
+    getMedicalContext
 };

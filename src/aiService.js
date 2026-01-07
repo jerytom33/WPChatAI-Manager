@@ -1,6 +1,6 @@
 const Groq = require('groq-sdk');
 const { getSystemPrompt, BUSINESS_TEMPLATE } = require('./template');
-const { getClinics, getDoctors, checkAvailability, createBooking } = require('./bookingService');
+const { getClinics, getDoctors, checkAvailability, createBooking, getMedicalContext } = require('./bookingService');
 
 // Initialize Groq client
 const apiKey = process.env.GROQ_API_KEY || 'dummy_key_for_startup';
@@ -95,7 +95,19 @@ const TOOLS = [
  */
 async function generateResponse(messages, newMessage, systemPromptOverride) {
     try {
-        let conversationContext = buildContext(messages, newMessage, systemPromptOverride);
+        // Fetch real-time knowledge from DB
+        const medicalKnowledge = await getMedicalContext();
+        const baseSystemPrompt = systemPromptOverride || getSystemPrompt();
+
+        // Enrich system prompt
+        const enrichedSystemPrompt = `${baseSystemPrompt}\n\n${medicalKnowledge}\n
+        INSTRUCTION: You are fully aware of the clinics and doctors listed above. 
+        - If the user asks for a clinic, immediately suggest the ones from 'Available Cities' or 'Key Clinics'. 
+        - DO NOT ask the user "which city?" if you see we only have clinics in one city (e.g. Los Angeles). Just assume it.
+        - If the user needs a doctor, check your knowledge or use 'get_doctors' to find one matching their needs.
+        `;
+
+        let conversationContext = buildContext(messages, newMessage, enrichedSystemPrompt);
 
         // First API Call
         const response = await groq.chat.completions.create({
