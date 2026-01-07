@@ -1,8 +1,8 @@
 const Groq = require('groq-sdk');
 const { getSystemPrompt, BUSINESS_TEMPLATE } = require('./template');
-const { checkAvailability, createBooking } = require('./bookingService');
+const { getClinics, getDoctors, checkAvailability, createBooking } = require('./bookingService');
 
-// Initialize Groq client (uses GROQ_API_KEY from environment)
+// Initialize Groq client
 const apiKey = process.env.GROQ_API_KEY || 'dummy_key_for_startup';
 const groq = new Groq({ apiKey });
 
@@ -14,17 +14,57 @@ const TOOLS = [
     {
         type: "function",
         function: {
-            name: "check_availability",
-            description: "Check available appointment slots for a specific date or time range",
+            name: "get_clinics",
+            description: "Search for clinics by city or name. Use this when user asks for a hospital or clinic nearby.",
             parameters: {
                 type: "object",
                 properties: {
+                    query: {
+                        type: "string",
+                        description: "City name (e.g. 'Kochi') or Clinic Name (e.g. 'Apollo')"
+                    }
+                }
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_doctors",
+            description: "Find doctors, optionally filtering by clinic or specialization.",
+            parameters: {
+                type: "object",
+                properties: {
+                    clinic_id: {
+                        type: "integer",
+                        description: "The ID of the clinic to find doctors for"
+                    },
+                    specialization: {
+                        type: "string",
+                        description: "Specialization (e.g., 'Cardiologist', 'Dentist')"
+                    }
+                }
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "check_availability",
+            description: "Check available appointment slots for a specific DOCTOR on a date.",
+            parameters: {
+                type: "object",
+                properties: {
+                    doctor_id: {
+                        type: "integer",
+                        description: "The ID of the doctor"
+                    },
                     date: {
                         type: "string",
-                        description: "The date to check availability for (e.g., '2023-10-27' or 'tomorrow')"
+                        description: "The date to check (YYYY-MM-DD)"
                     }
                 },
-                required: ["date"]
+                required: ["doctor_id", "date"]
             }
         }
     },
@@ -32,17 +72,19 @@ const TOOLS = [
         type: "function",
         function: {
             name: "book_appointment",
-            description: "Book a new appointment for the user",
+            description: "Book an appointment for a specific doctor.",
             parameters: {
                 type: "object",
                 properties: {
                     name: { type: "string", description: "Customer name" },
                     phone: { type: "string", description: "Customer phone number" },
-                    date: { type: "string", description: "Date of appointment (YYYY-MM-DD)" },
-                    time: { type: "string", description: "Time of appointment (HH:MM AM/PM)" },
+                    date: { type: "string", description: "Date (YYYY-MM-DD)" },
+                    time: { type: "string", description: "Time (HH:MM AM/PM)" },
+                    doctor_id: { type: "integer", description: "Doctor ID" },
+                    clinic_id: { type: "integer", description: "Clinic ID" },
                     reason: { type: "string", description: "Reason for visit (optional)" }
                 },
-                required: ["name", "phone", "date", "time"]
+                required: ["name", "phone", "date", "time", "doctor_id"]
             }
         }
     }
@@ -55,7 +97,7 @@ async function generateResponse(messages, newMessage, systemPromptOverride) {
     try {
         let conversationContext = buildContext(messages, newMessage, systemPromptOverride);
 
-        // First API Call: Check if AI wants to use a tool
+        // First API Call
         const response = await groq.chat.completions.create({
             model: MODEL,
             messages: conversationContext,
@@ -67,13 +109,13 @@ async function generateResponse(messages, newMessage, systemPromptOverride) {
 
         const responseMessage = response.choices[0]?.message;
 
-        // If no tool call, return text directly
+        // If no tool call, return text
         if (!responseMessage?.tool_calls || responseMessage.tool_calls.length === 0) {
             return cleanResponse(responseMessage?.content);
         }
 
         // Handle Tool Calls
-        conversationContext.push(responseMessage); // Add assistant's tool-call message to history
+        conversationContext.push(responseMessage);
 
         for (const toolCall of responseMessage.tool_calls) {
             const functionName = toolCall.function.name;
@@ -82,15 +124,18 @@ async function generateResponse(messages, newMessage, systemPromptOverride) {
 
             console.log(`🛠️ Tool Call: ${functionName}`, functionArgs);
 
-            if (functionName === 'check_availability') {
-                functionResult = await checkAvailability(functionArgs.date);
+            if (functionName === 'get_clinics') {
+                functionResult = await getClinics(functionArgs.query);
+            } else if (functionName === 'get_doctors') {
+                functionResult = await getDoctors(functionArgs.clinic_id, functionArgs.specialization);
+            } else if (functionName === 'check_availability') {
+                functionResult = await checkAvailability(functionArgs.doctor_id, functionArgs.date);
             } else if (functionName === 'book_appointment') {
                 functionResult = await createBooking(functionArgs);
             } else {
                 functionResult = { error: "Unknown tool" };
             }
 
-            // Append tool result to context
             conversationContext.push({
                 tool_call_id: toolCall.id,
                 role: "tool",
@@ -99,7 +144,7 @@ async function generateResponse(messages, newMessage, systemPromptOverride) {
             });
         }
 
-        // Second API Call: Generate final response based on tool result
+        // Second API Call
         const finalResponse = await groq.chat.completions.create({
             model: MODEL,
             messages: conversationContext,
@@ -116,22 +161,18 @@ async function generateResponse(messages, newMessage, systemPromptOverride) {
 }
 
 function cleanResponse(text) {
-    if (!text) return "I apologize, coudl you please rephrase that?";
+    if (!text) return "I apologize, could you please rephrase that?";
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     text = text.replace(/^[\s\S]*?<\/think>/gi, '').trim();
     return text;
 }
 
-/**
- * Build the conversation context for the AI
- */
 function buildContext(messages, newMessage, systemPromptOverride) {
     const context = [];
     context.push({
         role: 'system',
         content: systemPromptOverride || getSystemPrompt()
     });
-    // Add recent messages
     const recentMessages = messages.slice(-10);
     for (const msg of recentMessages) {
         context.push({
